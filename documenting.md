@@ -1,7 +1,29 @@
 # Rust Binary Crate Documentation Prompt
 
 ## Core Philosophy
-Generate comprehensive documentation for Rust binary crates that prioritizes **"Why"** over **"What"** - enabling 6+ month project re-entry with full context understanding.
+Generate **English-only** documentation for Rust binary crates with appropriate depth levels - enabling 6+ month project re-entry with full context understanding.
+
+**⚠️ CRITICAL: ALL documentation MUST be written in English, regardless of input language.**
+
+## Documentation Depth Levels
+
+### Level 1: Architecture & Key Components (Full "Why" Documentation)
+- Crate-level documentation
+- Module-level documentation  
+- Key business logic functions
+- Complex algorithms
+- External integration points
+
+### Level 2: Standard Functions (Moderate Documentation)
+- Regular business functions
+- Data processing functions
+- Most async functions
+
+### Level 3: Utility & Helper Functions (Minimal Documentation)
+- Simple transformations
+- Getters/setters
+- Basic validation functions
+- Internal helpers
 
 ## Documentation Structure
 
@@ -48,55 +70,60 @@ Generate comprehensive documentation for Rust binary crates that prioritizes **"
 //! [If applicable: async patterns and their reasoning]
 ```
 
-### Function-Level Documentation
+### Function-Level Documentation (by Level)
 
-#### For Async Functions
+#### Level 1: Key Functions (Full Documentation)
 ```rust
-/// [Brief description of what this function accomplishes]
+/// Processes incoming user commands and routes them to appropriate handlers.
+///
+/// This is the main command dispatcher that validates, normalizes, and routes
+/// all user input. It sits between the CLI parser and business logic handlers.
 ///
 /// ## Design Rationale
-/// [Why this function exists and why it's implemented this way]
-///
-/// ## Async Behavior
-/// [What async operations are performed and why they need to be async]
-/// [Cancellation behavior, if relevant]
+/// Uses async dispatch pattern to handle I/O-heavy operations without blocking.
+/// Command validation happens early to fail fast on invalid inputs.
 ///
 /// ## Error Handling
-/// [What errors can occur and the recovery strategy]
+/// Commands that fail validation are logged but don't crash the application.
+/// Network-related commands use retry logic for resilience.
 ///
 /// # Errors
 /// 
-/// Returns [`ErrorType`] when:
-/// - [Specific condition] - [Why this is an error and what to do]
-/// - [Another condition] - [Recovery guidance]
+/// Returns [`CommandError`] when:
+/// - Invalid command format - logs and continues processing
+/// - Network timeout - retries up to 3 times before failing
+/// - Permission denied - stops processing and requires user intervention
 ///
-/// # Examples
-/// 
-/// ```rust,no_run
-/// // Only include if genuinely helpful for understanding
-/// // Focus on the "why" rather than mechanical usage
-/// ```
-async fn example_function() -> Result<(), anyhow::Error> {
+async fn dispatch_user_command(cmd: Command) -> Result<CommandResult, CommandError> {
     // implementation
 }
 ```
 
-#### For Regular Functions
+#### Level 2: Standard Functions (Moderate Documentation)
 ```rust
-/// [Brief description focusing on purpose, not mechanics]
+/// Validates user input according to application rules.
 ///
-/// ## Why This Function Exists
-/// [Its role in the larger flow/algorithm]
-///
-/// ## Implementation Choice
-/// [Why this particular approach was chosen]
+/// Checks format, length limits, and required fields. Used by all input
+/// processing functions before data reaches business logic.
 ///
 /// # Errors
-/// [If fallible - what can go wrong and why]
+/// 
+/// Returns [`ValidationError`] for invalid input format or missing required fields.
 ///
-/// # Panics
-/// [If function can panic - when and why]
-fn example_function() {
+fn validate_user_input(input: &UserInput) -> Result<(), ValidationError> {
+    // implementation
+}
+```
+
+#### Level 3: Utility Functions (Minimal Documentation)
+```rust
+/// Converts string to lowercase and trims whitespace.
+fn normalize_string(input: &str) -> String {
+    // implementation
+}
+
+/// Returns true if the configuration is in debug mode.
+fn is_debug_mode() -> bool {
     // implementation
 }
 ```
@@ -245,10 +272,18 @@ For each documented item, ensure:
 
 ## Anti-Patterns to Avoid
 
-❌ **Don't document obvious things**:
+❌ **Don't over-document simple utilities**:
 ```rust
-/// Returns true if the value is true
-fn is_true(value: bool) -> bool { value }
+/// Converts the input string to uppercase and removes all whitespace characters
+/// because we need standardized formatting for comparison operations throughout
+/// the application and this ensures consistent data processing across modules...
+fn clean_string(input: &str) -> String  // TOO MUCH for a simple utility
+```
+
+❌ **Don't write in German** (even if input is German):
+```rust
+/// Verarbeitet Benutzereingaben und validiert sie  // WRONG - must be English
+fn process_input() // CORRECT: document in English
 ```
 
 ❌ **Don't just repeat the type signature**:
@@ -257,16 +292,46 @@ fn is_true(value: bool) -> bool { value }
 fn process_string(input: String) -> Result<String, Error>
 ```
 
-✅ **Do explain the "why"**:
+✅ **Do match documentation level to function importance**:
 ```rust
-/// Normalizes user input by trimming whitespace and converting to lowercase.
-/// 
-/// This standardization is necessary because user inputs come from multiple
-/// sources (CLI args, config files, environment variables) and need consistent
-/// formatting for comparison operations.
-fn normalize_user_input(input: String) -> Result<String, ValidationError>
+// Level 3: Simple and sufficient for utility
+/// Converts text to title case.
+fn to_title_case(text: &str) -> String
+
+// Level 1: Detailed for key business logic
+/// Processes payment transactions through the configured payment gateway.
+///
+/// This function handles the complete payment lifecycle including validation,
+/// gateway communication, and result persistence. It's designed to be resilient
+/// against network failures and provides detailed error context for debugging.
+async fn process_payment(payment: PaymentRequest) -> Result<PaymentResult, PaymentError>
 ```
 
-## Final Note
+## Documentation Level Decision Guide
 
-Remember: You're writing for **future you** who forgot the context. Explain the reasoning, not just the mechanics.
+**Use Level 1 (Full) when:**
+- Function is called from main business logic
+- Complex error handling or async behavior
+- Integration with external systems
+- Performance-critical operations
+- Would take >30 minutes to understand without docs
+
+**Use Level 2 (Moderate) when:**
+- Standard business functions
+- Clear purpose but some complexity
+- Error handling that affects user experience
+- Called by multiple other functions
+
+**Use Level 3 (Minimal) when:**
+- Simple transformations or utilities
+- Self-explanatory from name and signature
+- Internal helper functions
+- Getters, setters, simple validators
+
+## Final Notes
+
+**Language Requirement**: ALL documentation must be written in English, regardless of the language of input or comments in the code.
+
+**Documentation Depth**: Match the documentation depth to function importance. Not every utility function needs a design rationale - save the "why" explanations for functions that actually need them.
+
+**Target Audience**: You're writing for **future you** who forgot the context. For Level 1 functions, explain the reasoning. For Level 3 functions, just make it clear what they do.
